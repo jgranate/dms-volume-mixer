@@ -144,12 +144,22 @@ PluginComponent {
                             width: (parent.width - Theme.spacingM) / 2
                             spacing: Theme.spacingS
 
-                            StyledText {
-                                text: "Outputs"
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.weight: Font.Bold
-                                color: Theme.primary
-                                Layout.leftMargin: Theme.spacingXS
+                            RowLayout {
+                                width: parent.width
+                                spacing: Theme.spacingS
+
+                                Item { Layout.preferredWidth: 18 } // Match icon size
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: "Outputs"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.Bold
+                                    color: Theme.primary
+                                    horizontalAlignment: Text.AlignHCenter
+                                }
+
+                                Item { Layout.preferredWidth: 58 } // Match buttons width (28*2 + 2)
                             }
 
                             Repeater {
@@ -190,13 +200,23 @@ PluginComponent {
                             width: (parent.width - Theme.spacingM) / 2
                             spacing: Theme.spacingS
 
-                            StyledText {
+                            RowLayout {
                                 visible: AudioService.source !== null
-                                text: "Inputs"
-                                font.pixelSize: Theme.fontSizeSmall
-                                font.weight: Font.Bold
-                                color: Theme.primary
-                                Layout.leftMargin: Theme.spacingXS
+                                width: parent.width
+                                spacing: Theme.spacingS
+
+                                Item { Layout.preferredWidth: 18 } // Match icon size
+
+                                StyledText {
+                                    Layout.fillWidth: true
+                                    text: "Inputs"
+                                    font.pixelSize: Theme.fontSizeSmall
+                                    font.weight: Font.Bold
+                                    color: Theme.primary
+                                    horizontalAlignment: Text.AlignHCenter
+                                }
+
+                                Item { Layout.preferredWidth: 58 } // Match buttons width (28*2 + 2)
                             }
 
                             Repeater {
