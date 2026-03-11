@@ -33,6 +33,9 @@ This plugin uses a modular architecture to separate logic from UI components.
 
 ## Technical Details
 
+### Stream Visibility
+This plugin follows a dynamic visibility model. It only displays audio streams that are **currently active** or recently active in Pipewire. When an application stops streaming audio and closes its Pipewire node, it will automatically be removed from the mixer UI.
+
 ### Reactivity
 The plugin uses a centralized `stateTrigger` in `VolumeLogic` to keep the UI in sync with Pipewire and MPRIS changes.
 
