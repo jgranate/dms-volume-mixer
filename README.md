@@ -8,8 +8,15 @@ A modular volume mixer for the DMS bar, providing control over hardware devices 
 
 ## Installation
 
-To install this plugin in DankMaterialShell:
+### Quick Install (Command Line)
+The fastest way to install is to clone this repository directly into your DMS plugins folder:
 
+```bash
+mkdir -p ~/.config/DankMaterialShell/plugins/volumeMixer
+git clone https://github.com/jgranate/dms-volume-mixer ~/.config/DankMaterialShell/plugins/volumeMixer
+```
+
+### Manual Install
 1.  Navigate to your DMS plugins directory (usually `~/.config/DankMaterialShell/plugins/`).
 2.  Create a new folder named `volumeMixer`.
 3.  Copy all the files and folders from this project into that new `volumeMixer` directory.
