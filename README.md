@@ -1,5 +1,7 @@
 # Volume Mixer Plugin for DankMaterialShell
 
+![Volume Mixer Screenshot](./assets/screenshot.png)
+
 A modular volume mixer for the DMS bar, providing control over hardware devices and application streams.
 
 > **Note**: This plugin was vibe coded with the help of Gemini CLI.
