@@ -47,3 +47,9 @@ The plugin uses `pactl move-sink-input` where possible to move streams using sta
 The modular design allows components to be used independently:
 1.  **Logic**: The `Logic/` folder handles Pipewire/pactl interactions.
 2.  **UI**: `DeviceRow.qml` or `StreamTile.qml` can be used as building blocks for other audio tools.
+
+---
+
+## Credits
+- Inspired by the [dms-volume-mixer](https://github.com/cwelsys/dms-volume-mixer) project by **cwelsys**.
+
