@@ -60,8 +60,7 @@ PluginComponent {
                 onWheel: wheel => volLogic.adjustVolumeByScroll(wheel, pluginRoot.pluginData?.reverseScroll)
                 onClicked: mouse => {
                     if (mouse.button === Qt.RightButton) {
-                        if (AudioService.sink?.audio)
-                            AudioService.sink.audio.muted = !AudioService.sink.audio.muted;
+                        if (volLogic) volLogic.toggleMasterMute();
                     }
                 }
             }

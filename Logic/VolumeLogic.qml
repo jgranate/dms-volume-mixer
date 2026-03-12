@@ -3,8 +3,8 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Pipewire
 import Quickshell.Services.Mpris
+import qs.Common
 import qs.Services
-import qs.Modules.Plugins
 
 Item {
     id: root
@@ -17,6 +17,14 @@ Item {
     // Reactive Trigger
     property int stateTrigger: 0
     property var routingOverrides: ({})
+    property var _manualMutes: ({})
+
+    function setManualMute(nodeId, isMuted) {
+        let mutes = root._manualMutes;
+        if (isMuted) mutes[nodeId] = true;
+        else delete mutes[nodeId];
+        root._manualMutes = mutes;
+    }
 
     // Persisted State (Authoritative)
     readonly property var deactivatedIds: root.pluginData?.deactivatedIds ?? []
@@ -29,29 +37,44 @@ Item {
     property var outputNodes: []
     property var inputNodes: []
     property var streamNodes: []
+    property var activeOutputNodes: []
 
     function refreshNodes() {
-        const allNodes = Pipewire.nodes.values;
+        const nodes = Pipewire.nodes.values;
+        if (!nodes) return;
         
-        root.outputNodes = allNodes.filter(n => {
+        const currentDeactivated = root.deactivatedIds;
+        
+        // Main list: Honors hideInactive (deactivated devices stay visible but greyed out if toggle is off)
+        root.outputNodes = nodes.filter(n => {
             if (!n.isSink || n.isStream) return false;
             const props = n.properties || {};
             const mediaClass = (props["media.class"] || "").toLowerCase();
             if (mediaClass.includes("video")) return false;
-            if (root.hideInactive && root.isDeactivated(n.id)) return false;
+            if (root.hideInactive && currentDeactivated.includes(n.id)) return false;
             return true;
         });
 
-        root.inputNodes = allNodes.filter(n => {
+        // Routing strip: ALWAYS hides deactivated devices
+        root.activeOutputNodes = nodes.filter(n => {
+            if (!n.isSink || n.isStream) return false;
+            const props = n.properties || {};
+            const mediaClass = (props["media.class"] || "").toLowerCase();
+            if (mediaClass.includes("video")) return false;
+            if (currentDeactivated.includes(n.id)) return false;
+            return true;
+        });
+
+        root.inputNodes = nodes.filter(n => {
             const props = n.properties || {};
             const mediaClass = props["media.class"] || "";
             if (mediaClass !== "Audio/Source") return false;
             if (n.isStream) return false;
-            if (root.hideInactive && root.isDeactivated(n.id)) return false;
+            if (root.hideInactive && currentDeactivated.includes(n.id)) return false;
             return true;
         });
 
-        root.streamNodes = allNodes.filter(n => 
+        root.streamNodes = nodes.filter(n => 
             n.audio && n.isStream && (n.isSink || n.isSource) && 
             n.name !== "quickshell" && 
             !n.name.toLowerCase().includes("cava")
@@ -87,16 +110,39 @@ Item {
         function onValuesChanged() { root.stateTrigger++ }
     }
 
-    // Slow polling for state changes (Running/Suspended) that don't trigger valuesChanged
+    // Reactivity and Polling
     Timer {
-        interval: 2000
-        running: true
-        repeat: true
-        onTriggered: root.stateTrigger++
+        id: delayedTrigger
+        interval: 150
+        onTriggered: {
+            root.refreshNodes();
+            if (interval === 150) {
+                interval = 2000; // Switch to slow polling after the initial burst
+                restart();
+            }
+        }
+    }
+
+    // OSD Reset Helper
+    Timer {
+        id: osdResetTimer
+        interval: 1000
+        onTriggered: SessionData.suppressOSD = false
+    }
+
+    function suppressOSD() {
+        SessionData.suppressOSD = true;
+        osdResetTimer.restart();
+    }
+
+    function triggerDelayedUpdates() {
+        root.stateTrigger++;
+        delayedTrigger.interval = 150;
+        delayedTrigger.restart();
     }
 
     // Initial load
-    Component.onCompleted: root.refreshNodes()
+    Component.onCompleted: root.triggerDelayedUpdates()
 
     // --- Volume Scroll Logic ---
     property real _scrollAccumulator: 0
@@ -128,6 +174,7 @@ Item {
 
         AudioService.sink.audio.muted = false;
         AudioService.sink.audio.volume = newVolume / 100;
+        AudioService.playVolumeChangeSoundIfEnabled();
         
         root._scrollInProgress = true;
         root._scrollAccumulator = 0;
@@ -163,16 +210,15 @@ Item {
             node.audio.muted = deactivating;
             
             if (deactivating) {
-                const replacement = Pipewire.nodes.values.find(n => 
-                    n.audio && n.isSink === isSink && !n.isStream && n.id != nodeId && !list.includes(n.id)
-                );
+                // Find a replacement node that is NOT deactivated and is the same type (sink/source)
+                const replacement = (isSink ? root.outputNodes : root.inputNodes).find(n => n.id != nodeId);
                 
                 if (replacement) {
                     if (isSink && root.isDefaultSink(node)) root.setDefaultSink(replacement);
                     else if (!isSink && root.isDefaultSource(node)) root.setDefaultSource(replacement);
                     
                     if (isSink) {
-                        Pipewire.nodes.values.filter(n => n.isStream && n.audio).forEach(stream => {
+                        root.streamNodes.forEach(stream => {
                             if (stream.audio.sinkId == nodeId || (stream.properties && stream.properties["node.driver-id"] == nodeId)) {
                                 root.moveStream(stream, replacement);
                             }
@@ -290,22 +336,26 @@ Item {
         return def ? AudioService.displayName(def) : "System Default";
     }
 
-    Timer {
-        id: delayedTrigger
-        interval: 150
-        onTriggered: {
-            root.refreshNodes();
-            if (interval === 150) {
-                interval = 500;
-                restart();
-            }
+    function toggleMasterMute() {
+        if (!AudioService.sink?.audio) return;
+        const isMuting = !AudioService.sink.audio.muted;
+        
+        if (isMuting) {
+            // Global Mute: Mute everything
+            root.outputNodes.forEach(node => {
+                if (node.audio) node.audio.muted = true;
+            });
+            AudioService.sink.audio.muted = true;
+        } else {
+            // Global Unmute: Restore only those that aren't manually muted
+            root.outputNodes.forEach(node => {
+                if (node.audio) {
+                    const isManuallyMuted = !!root._manualMutes[node.id];
+                    node.audio.muted = isManuallyMuted;
+                }
+            });
+            AudioService.sink.audio.muted = false;
         }
-    }
-
-    function triggerDelayedUpdates() {
-        root.stateTrigger++;
-        delayedTrigger.interval = 150;
-        delayedTrigger.restart();
     }
 
     // --- Audio Commands ---

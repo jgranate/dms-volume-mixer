@@ -26,11 +26,7 @@ RowLayout {
 
     Repeater {
         model: ScriptModel {
-            values: {
-                if (!volLogic) return [];
-                const _ = root.stateTrigger;
-                return Pipewire.nodes.values.filter(n => n.audio && n.isSink && !n.isStream && !volLogic.isDeactivated(n.id));
-            }
+            values: volLogic ? volLogic.activeOutputNodes : []
         }
 
         delegate: Rectangle {

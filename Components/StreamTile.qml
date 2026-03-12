@@ -141,11 +141,10 @@ StyledRect {
 
                     onSliderValueChanged: newValue => {
                         if (streamNode?.audio) {
-                            SessionData.suppressOSD = true;
+                            if (volLogic) volLogic.suppressOSD();
                             streamNode.audio.volume = newValue / 100;
                             if (newValue > 0 && streamNode.audio.muted)
                                 streamNode.audio.muted = false;
-                            AudioService.playVolumeChangeSoundIfEnabled();
                         }
                     }
                 }

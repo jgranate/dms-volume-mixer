@@ -56,6 +56,7 @@ ColumnLayout {
                     deviceNode.audio.volume = newValue / 100;
                     if (isSink && newValue > 0 && deviceNode.audio.muted)
                         deviceNode.audio.muted = false;
+                    AudioService.playVolumeChangeSoundIfEnabled();
                 }
             }
         }
@@ -91,8 +92,11 @@ ColumnLayout {
                 iconSize: 16
                 enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode.id))
                 onClicked: {
-                    if (deviceNode?.audio)
-                        deviceNode.audio.muted = !deviceNode.audio.muted;
+                    if (deviceNode?.audio) {
+                        const newMute = !deviceNode.audio.muted;
+                        deviceNode.audio.muted = newMute;
+                        if (volLogic) volLogic.setManualMute(deviceNode.id, newMute);
+                    }
                 }
             }
         }
