@@ -53,7 +53,11 @@ RowLayout {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: if (volLogic) volLogic.moveStream(root.streamNode, modelData)
+                propagateComposedEvents: false
+                onClicked: mouse => {
+                    if (volLogic) volLogic.moveStream(root.streamNode, modelData);
+                    mouse.accepted = true;
+                }
                 ToolTip.visible: containsMouse
                 ToolTip.text: AudioService.displayName(modelData)
                 ToolTip.delay: 500

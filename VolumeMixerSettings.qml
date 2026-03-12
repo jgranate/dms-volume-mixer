@@ -30,57 +30,6 @@ PluginSettings {
     }
 
     Column {
-        id: deviceSelectorSetting
-        width: parent.width
-        spacing: Theme.spacingXS
-
-        property bool isInitialized: false
-        property bool value: true
-
-        function loadValue() {
-            value = root.loadValue("showDeviceSelector", true)
-            isInitialized = true
-        }
-
-        Component.onCompleted: Qt.callLater(loadValue)
-
-        onValueChanged: {
-            if (!isInitialized) return
-            root.saveValue("showDeviceSelector", value)
-        }
-
-        Item {
-            width: parent.width
-            height: deviceLabel.implicitHeight
-
-            StyledText {
-                id: deviceLabel
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Output Device"
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.Medium
-                color: Theme.surfaceText
-            }
-
-            DankToggle {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                checked: deviceSelectorSetting.value
-                onToggled: isChecked => deviceSelectorSetting.value = isChecked
-            }
-        }
-
-        StyledText {
-            text: "Display active output device selection"
-            font.pixelSize: Theme.fontSizeSmall
-            color: Theme.surfaceVariantText
-            width: parent.width
-            wrapMode: Text.WordWrap
-        }
-    }
-
-    Column {
         id: reverseScrollSetting
         width: parent.width
         spacing: Theme.spacingXS
@@ -124,57 +73,6 @@ PluginSettings {
 
         StyledText {
             text: "Invert the volume scroll direction"
-            font.pixelSize: Theme.fontSizeSmall
-            color: Theme.surfaceVariantText
-            width: parent.width
-            wrapMode: Text.WordWrap
-        }
-    }
-
-    Column {
-        id: hideInactiveSetting
-        width: parent.width
-        spacing: Theme.spacingXS
-
-        property bool isInitialized: false
-        property bool value: false
-
-        function loadValue() {
-            value = root.loadValue("hideInactive", false)
-            isInitialized = true
-        }
-
-        Component.onCompleted: Qt.callLater(loadValue)
-
-        onValueChanged: {
-            if (!isInitialized) return
-            root.saveValue("hideInactive", value)
-        }
-
-        Item {
-            width: parent.width
-            height: hideInactiveLabel.implicitHeight
-
-            StyledText {
-                id: hideInactiveLabel
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                text: "Hide Inactive Devices"
-                font.pixelSize: Theme.fontSizeMedium
-                font.weight: Font.Medium
-                color: Theme.surfaceText
-            }
-
-            DankToggle {
-                anchors.right: parent.right
-                anchors.verticalCenter: parent.verticalCenter
-                checked: hideInactiveSetting.value
-                onToggled: isChecked => hideInactiveSetting.value = isChecked
-            }
-        }
-
-        StyledText {
-            text: "Hide devices that have been deactivated in the mixer UI"
             font.pixelSize: Theme.fontSizeSmall
             color: Theme.surfaceVariantText
             width: parent.width

@@ -26,7 +26,7 @@ StyledRect {
     
     readonly property bool shouldShowMetadata: {
         if (!volLogic || !streamNode || !mprisPlayer) return false;
-        const allStreams = volLogic.getAudioStreams();
+        const allStreams = volLogic.streamNodes;
         const appName = (streamNode.properties?.["application.name"] || "").toLowerCase();
         const appStreams = allStreams.filter(s => (s.properties?.["application.name"] || "").toLowerCase() === appName);
         

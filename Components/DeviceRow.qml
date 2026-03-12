@@ -112,11 +112,13 @@ ColumnLayout {
             enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode.id))
             hoverEnabled: true
             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-            onClicked: {
+            propagateComposedEvents: false
+            onClicked: mouse => {
                 if (volLogic && deviceNode) {
                     if (isSink) volLogic.setDefaultSink(deviceNode);
                     else volLogic.setDefaultSource(deviceNode);
                 }
+                mouse.accepted = true;
             }
             ToolTip.visible: containsMouse
             ToolTip.text: deviceNode ? AudioService.displayName(deviceNode) : ""

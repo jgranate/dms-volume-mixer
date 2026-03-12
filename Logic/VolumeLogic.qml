@@ -22,6 +22,44 @@ Item {
     readonly property var deactivatedIds: root.pluginData?.deactivatedIds ?? []
     readonly property bool hideInactive: root.pluginData?.hideInactive ?? false
 
+    onHideInactiveChanged: root.refreshNodes()
+    onDeactivatedIdsChanged: root.refreshNodes()
+
+    // Cached Filtered Lists
+    property var outputNodes: []
+    property var inputNodes: []
+    property var streamNodes: []
+
+    function refreshNodes() {
+        const allNodes = Pipewire.nodes.values;
+        
+        root.outputNodes = allNodes.filter(n => {
+            if (!n.isSink || n.isStream) return false;
+            const props = n.properties || {};
+            const mediaClass = (props["media.class"] || "").toLowerCase();
+            if (mediaClass.includes("video")) return false;
+            if (root.hideInactive && root.isDeactivated(n.id)) return false;
+            return true;
+        });
+
+        root.inputNodes = allNodes.filter(n => {
+            const props = n.properties || {};
+            const mediaClass = props["media.class"] || "";
+            if (mediaClass !== "Audio/Source") return false;
+            if (n.isStream) return false;
+            if (root.hideInactive && root.isDeactivated(n.id)) return false;
+            return true;
+        });
+
+        root.streamNodes = allNodes.filter(n => 
+            n.audio && n.isStream && (n.isSink || n.isSource) && 
+            n.name !== "quickshell" && 
+            !n.name.toLowerCase().includes("cava")
+        );
+        
+        root.stateTrigger++;
+    }
+
     // --- Core Master Props ---
     readonly property real masterVolume: AudioService.sink?.audio
         ? Math.round(AudioService.sink.audio.volume * 100)
@@ -35,7 +73,7 @@ Item {
 
     Connections {
         target: Pipewire.nodes
-        function onValuesChanged() { root.stateTrigger++ }
+        function onValuesChanged() { root.refreshNodes() }
     }
 
     Connections {
@@ -49,19 +87,16 @@ Item {
         function onValuesChanged() { root.stateTrigger++ }
     }
 
-    Timer {
-        interval: 500
-        running: true
-        repeat: true
-        onTriggered: root.stateTrigger++
-    }
-
+    // Slow polling for state changes (Running/Suspended) that don't trigger valuesChanged
     Timer {
         interval: 2000
         running: true
         repeat: true
         onTriggered: root.stateTrigger++
     }
+
+    // Initial load
+    Component.onCompleted: root.refreshNodes()
 
     // --- Volume Scroll Logic ---
     property real _scrollAccumulator: 0
@@ -75,7 +110,8 @@ Item {
 
         if (Math.abs(root._scrollAccumulator) < 120) return;
 
-        let currentVolume = AudioService.sink.audio.volume * 100;
+        // PRECISION: Use Math.round to prevent floating point jitter
+        let currentVolume = Math.round(AudioService.sink.audio.volume * 100);
         let maxVol = 115; 
         let step = 5;
         let newVolume;
@@ -87,6 +123,9 @@ Item {
         else
             newVolume = Math.max(0, currentVolume - step);
         
+        // Ensure we land on a clean multiple of the step
+        newVolume = Math.round(newVolume / step) * step;
+
         AudioService.sink.audio.muted = false;
         AudioService.sink.audio.volume = newVolume / 100;
         
@@ -150,28 +189,19 @@ Item {
                 Quickshell.execDetached(["pactl", "set-sink-mute", "@DEFAULT_SINK@", "0"]);
             }
         }
-        root.stateTrigger++;
+        root.refreshNodes();
     }
 
     function toggleHideInactive() {
         if (root.pluginService) {
             root.pluginService.savePluginData(root.pluginId, "hideInactive", !root.hideInactive);
         }
-        root.stateTrigger++;
-    }
-
-    function getAudioStreams() {
-        const nodes = Pipewire.nodes.values.filter(n => 
-            n.audio && n.isStream && (n.isSink || n.isSource) && 
-            n.name !== "quickshell" && 
-            !n.name.toLowerCase().includes("cava")
-        );
-        return nodes;
+        root.refreshNodes();
     }
 
     readonly property bool isAnyStreamPlaying: {
         const _ = root.stateTrigger;
-        return root.getAudioStreams().some(s => {
+        return root.streamNodes.some(s => {
             if (s.state !== PwNode.Running) return false;
             const player = root.findMprisPlayer(s);
             if (player) return player.playbackState === 1;
@@ -202,21 +232,34 @@ Item {
         const props = streamNode.properties || {};
         const serial = props["object.serial"] || streamNode.id;
         
+        // 1. Check local overrides first
         const override = root.routingOverrides[serial];
         if (override !== undefined) return (override == sinkId || override == sinkName);
 
+        // 2. Check explicit targets and drivers
         const target = props["node.target"];
         const driverId = props["node.driver-id"];
         const currentSinkId = streamNode.audio.sinkId;
 
+        // Direct match
         if (driverId != null && driverId == sinkId) return true;
         if (currentSinkId != 0 && currentSinkId == sinkId) return true;
         if (target != null && target !== "" && (target == sinkId || target == sinkName)) return true;
 
+        // 3. Handle Virtual Sinks / Link Chaining
+        // If the stream is linked to a node that eventually links to this sink
+        // Pipewire often sets node.driver-id to the physical device even if routed through a virtual one.
+        
+        // 4. Default Routing Logic
         if (root.isDefaultSink(sinkNode)) {
+            // It's the default sink. Is this stream EXPLICITLY somewhere else?
             const isExplicitlyElsewhere = (target != null && target !== "" && target != sinkId && target != sinkName);
             const isPlayingElsewhere = (driverId != null && driverId != sinkId) || (currentSinkId != 0 && currentSinkId != sinkId);
-            if (!isExplicitlyElsewhere && !isPlayingElsewhere) return true;
+            
+            if (!isExplicitlyElsewhere && !isPlayingElsewhere) {
+                // No explicit target, so it follows the default
+                return true;
+            }
         }
         return false;
     }
@@ -237,20 +280,11 @@ Item {
         const driverId = props["node.driver-id"];
         const sinkId = streamNode.audio.sinkId;
 
-        if (target != null && target !== "") {
-            const sink = Pipewire.nodes.values.find(n => n.isSink && (n.id == target || n.name == target));
-            if (sink) return AudioService.displayName(sink);
-        }
+        // Try to find the node by ID or name
+        const findSink = (val) => Pipewire.nodes.values.find(n => n.isSink && (n.id == val || n.name == val));
 
-        if (driverId != null) {
-            const sink = Pipewire.nodes.values.find(n => n.isSink && n.id == driverId);
-            if (sink) return AudioService.displayName(sink);
-        }
-
-        if (sinkId != 0) {
-            const sink = Pipewire.nodes.values.find(n => n.isSink && n.id == sinkId);
-            if (sink) return AudioService.displayName(sink);
-        }
+        let sink = findSink(target) || findSink(driverId) || findSink(sinkId);
+        if (sink) return AudioService.displayName(sink);
 
         const def = Pipewire.defaultAudioSink;
         return def ? AudioService.displayName(def) : "System Default";
@@ -260,7 +294,7 @@ Item {
         id: delayedTrigger
         interval: 150
         onTriggered: {
-            root.stateTrigger++;
+            root.refreshNodes();
             if (interval === 150) {
                 interval = 500;
                 restart();
@@ -274,6 +308,12 @@ Item {
         delayedTrigger.restart();
     }
 
+    // --- Audio Commands ---
+    function runAudioCommand(args) {
+        Quickshell.execDetached(args);
+        root.triggerDelayedUpdates();
+    }
+
     function moveStream(streamNode, sinkNode) {
         if (!streamNode || !sinkNode) return;
         const streamId = streamNode.id;
@@ -281,60 +321,61 @@ Item {
         const sinkName = sinkNode.name;
         const sinkId = sinkNode.id;
 
+        let cmd = [];
         if (streamNode.properties?.["object.serial"]) {
-            Quickshell.execDetached(["pactl", "move-sink-input", streamNode.properties["object.serial"].toString(), sinkName]);
+            cmd = ["pactl", "move-sink-input", streamNode.properties["object.serial"].toString(), sinkName];
         } else {
-            Quickshell.execDetached(["wpctl", "move", streamId.toString(), sinkId.toString()]);
+            cmd = ["wpctl", "move", streamId.toString(), sinkId.toString()];
         }
+        
+        root.runAudioCommand(cmd);
         
         let overrides = root.routingOverrides;
         overrides[serial] = sinkId;
         root.routingOverrides = overrides;
-        
-        root.triggerDelayedUpdates();
     }
 
     function setDefaultSink(node) {
         if (!node || !node.name) return;
-        Quickshell.execDetached(["pactl", "set-default-sink", node.name]);
+        root.runAudioCommand(["pactl", "set-default-sink", node.name]);
         root.routingOverrides = ({});
-        root.triggerDelayedUpdates();
     }
 
     function setDefaultSource(node) {
         if (!node || !node.name) return;
-        Quickshell.execDetached(["pactl", "set-default-source", node.name]);
-        root.stateTrigger++;
-        Qt.callLater(() => { root.stateTrigger++ });
+        root.runAudioCommand(["pactl", "set-default-source", node.name]);
     }
 
     function findMprisPlayer(node) {
         if (!node || !node.properties) return null;
         const props = node.properties;
+        const nodePid = props["application.process.id"];
         const appName = (props["application.name"] || "").toLowerCase();
         const binary = (props["application.process.binary"] || "").toLowerCase();
-        const nodeName = (node.name || "").toLowerCase();
-        const nodeDesc = (props["node.description"] || "").toLowerCase();
         
         const players = Mpris.players.values;
         if (players.length === 0) return null;
 
-        // 1. Try exact identity/entry matches
+        // 1. Try PID matching (Most reliable for multi-instance)
+        if (nodePid) {
+            for (const player of players) {
+                // Bus names often contain the PID: org.mpris.MediaPlayer2.vlc.instance1234
+                if (player.busName && player.busName.includes(nodePid.toString())) return player;
+            }
+        }
+
+        // 2. Try exact identity/entry matches
         for (const player of players) {
             const id = player.identity.toLowerCase();
             const entry = player.desktopEntry.toLowerCase();
-            if (id === appName || entry === appName || 
-                id === binary || entry === binary ||
-                id === nodeName || entry === nodeName) return player;
+            if (id === appName || entry === appName || id === binary || entry === binary) return player;
         }
         
-        // 2. Try partial/includes matches
+        // 3. Try partial/includes matches
         for (const player of players) {
             const id = player.identity.toLowerCase();
             if (appName && (id.includes(appName) || appName.includes(id))) return player;
             if (binary && (id.includes(binary) || binary.includes(id))) return player;
-            if (nodeName && (id.includes(nodeName) || nodeName.includes(id))) return player;
-            if (nodeDesc && (id.includes(nodeDesc) || nodeDesc.includes(id))) return player;
         }
         return null;
     }

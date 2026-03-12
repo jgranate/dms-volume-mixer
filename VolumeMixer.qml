@@ -37,7 +37,7 @@ PluginComponent {
         if (!volLogic) return Theme.surfaceText;
         const _ = volLogic.stateTrigger;
         if (volLogic.masterMuted || volLogic.masterVolume === 0)
-            return Theme.widgetIconColor;
+            return Theme.surfaceVariantText;
         
         if (volLogic.isAnyStreamPlaying)
             return Theme.primary;
@@ -47,15 +47,33 @@ PluginComponent {
 
     horizontalBarPill: Component {
         Item {
-            implicitWidth: hPillRow.implicitWidth
-            implicitHeight: hPillRow.implicitHeight
+            // Ensure we take up enough space for the layout but allow the MouseArea 
+            // to expand to the full pill container size.
+            implicitWidth: hPillRow.implicitWidth + Theme.spacingS * 2
+            implicitHeight: pluginRoot.barThickness
+
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.RightButton
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onWheel: wheel => volLogic.adjustVolumeByScroll(wheel, pluginRoot.pluginData?.reverseScroll)
+                onClicked: mouse => {
+                    if (mouse.button === Qt.RightButton) {
+                        if (AudioService.sink?.audio)
+                            AudioService.sink.audio.muted = !AudioService.sink.audio.muted;
+                    }
+                }
+            }
 
             RowLayout {
                 id: hPillRow
                 spacing: Theme.spacingS
                 anchors.centerIn: parent
+                enabled: false 
 
                 DankIcon {
+                    visible: (pluginRoot.pluginData?.pillDisplay ?? "both") !== "percent"
                     name: {
                         if (!volLogic) return "volume_up";
                         if ((pluginRoot.pluginData?.pillIcon ?? "volume") === "mixer")
@@ -74,26 +92,15 @@ PluginComponent {
                     visible: (pluginRoot.pluginData?.pillDisplay ?? "both") !== "icon"
                     text: volLogic ? volLogic.masterVolume + "%" : "0%"
                     font.pixelSize: Theme.fontSizeExtraSmall
-                    color: Theme.widgetTextColor
-                }
-            }
-
-            MouseArea {
-                anchors.fill: parent
-                acceptedButtons: Qt.RightButton
-                onWheel: wheel => volLogic.adjustVolumeByScroll(wheel, pluginRoot.pluginData?.reverseScroll)
-                onClicked: mouse => {
-                    if (mouse.button === Qt.RightButton) {
-                        if (AudioService.sink?.audio)
-                            AudioService.sink.audio.muted = !AudioService.sink.audio.muted;
-                    }
+                    color: pluginRoot.activePillColor
+                    font.strikeout: volLogic ? (volLogic.masterMuted || volLogic.masterVolume === 0) : false
                 }
             }
         }
     }
 
     popoutContent: Component {
-        PopoutComponent {
+            PopoutComponent {
             id: popoutContainer
             headerText: "Volume Mixer"
             detailsText: AudioService.displayName(AudioService.sink)
@@ -102,9 +109,7 @@ PluginComponent {
             Item {
                 id: popoutItem
                 width: parent.width
-                implicitHeight: topSection.height + Theme.spacingS + scrollSection.height
-
-                readonly property bool showDeviceSelector: pluginRoot.pluginData?.showDeviceSelector !== false
+                implicitHeight: topSection.height + Theme.spacingM + scrollSection.height
                 readonly property string sortOrder: pluginRoot.pluginData?.sortOrder ?? "name_asc"
 
                 Column {
@@ -164,20 +169,7 @@ PluginComponent {
 
                             Repeater {
                                 model: ScriptModel {
-                                    values: {
-                                        if (!volLogic) return [];
-                                        const _ = volLogic.stateTrigger;
-                                        return Pipewire.nodes.values.filter(n => {
-                                            if (!n.isSink || n.isStream) return false;
-                                            
-                                            const props = n.properties || {};
-                                            const mediaClass = (props["media.class"] || "").toLowerCase();
-                                            if (mediaClass.includes("video")) return false;
-
-                                            if (volLogic.hideInactive && volLogic.isDeactivated(n.id)) return false;
-                                            return true;
-                                        });
-                                    }
+                                    values: volLogic ? volLogic.outputNodes : []
                                 }
 
                                 delegate: Item {
@@ -221,19 +213,7 @@ PluginComponent {
 
                             Repeater {
                                 model: ScriptModel {
-                                    values: {
-                                        if (!volLogic) return [];
-                                        const _ = volLogic.stateTrigger;
-                                        return Pipewire.nodes.values.filter(n => {
-                                            const props = n.properties || {};
-                                            const mediaClass = props["media.class"] || "";
-                                            // STRICT: Must be an Audio Source node
-                                            if (mediaClass !== "Audio/Source") return false;
-                                            if (n.isStream) return false;
-                                            if (volLogic.hideInactive && volLogic.isDeactivated(n.id)) return false;
-                                            return true;
-                                        });
-                                    }
+                                    values: volLogic ? volLogic.inputNodes : []
                                 }
 
                                 delegate: Item {
@@ -273,7 +253,7 @@ PluginComponent {
                                 values: {
                                     if (!volLogic) return [];
                                     const _ = volLogic.stateTrigger;
-                                    const nodes = volLogic.getAudioStreams();
+                                    const nodes = [...volLogic.streamNodes];
                                     const order = pluginRoot.pluginData?.sortOrder ?? "name_asc";
                                     if (order === "none") return nodes;
                                     return nodes.sort((a, b) => {
