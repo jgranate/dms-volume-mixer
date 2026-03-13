@@ -49,7 +49,7 @@ PluginComponent {
         Item {
             // Ensure we take up enough space for the layout but allow the MouseArea 
             // to expand to the full pill container size.
-            implicitWidth: hPillRow.implicitWidth + Theme.spacingS * 2
+            implicitWidth: hPillRow.implicitWidth
             implicitHeight: pluginRoot.barThickness
 
             MouseArea {
