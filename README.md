@@ -62,6 +62,10 @@ The modular design allows components to be used independently:
 
 ---
 
+## Known Limitations
+
+- **Audio Cue Routing**: The "volume change" sound effect (audio cue) is handled by the core shell's `AudioService` using `QtMultimedia`. In some environments (especially with Bluetooth devices on PipeWire), `QtMultimedia` may not correctly detect the default sink change in real-time. This can cause the audio cue to continue playing through the original default device (e.g., laptop speakers) even after switching the default sink to a headset. This is a limitation of the underlying toolkit and not the plugin itself.
+
 ## Credits
 - Inspired by the [dms-volume-mixer](https://github.com/cwelsys/dms-volume-mixer) project by **cwelsys**.
 
