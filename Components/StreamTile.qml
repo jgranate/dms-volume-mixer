@@ -156,7 +156,7 @@ StyledRect {
                     iconSize: 14
                     onClicked: {
                         if (streamNode?.audio) {
-                            SessionData.suppressOSD = true;
+                            SessionData.suppressOSDTemporarily();
                             streamNode.audio.muted = !streamNode.audio.muted;
                             AudioService.playVolumeChangeSoundIfEnabled();
                         }
