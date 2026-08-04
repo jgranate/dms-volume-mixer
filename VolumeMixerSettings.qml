@@ -93,6 +93,13 @@ PluginSettings {
         ]
     }
 
+    ToggleSetting {
+        settingKey: "showDeviceSelector"
+        label: "Show Device Selector"
+        description: "Quick output device switcher in the popout header"
+        defaultValue: false
+    }
+
     // --- Hidden Persisted State (Handled by VolumeMixer.qml) ---
     property var deactivatedIds: root.loadValue("deactivatedIds", [])
     property bool hideInactive: root.loadValue("hideInactive", false)

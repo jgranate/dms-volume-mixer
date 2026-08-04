@@ -118,6 +118,23 @@ PluginComponent {
                     anchors.right: parent.right
                     spacing: Theme.spacingM
 
+                    Column {
+                        width: parent.width
+                        spacing: Theme.spacingXS
+                        visible: pluginRoot.pluginData?.showDeviceSelector ?? false
+
+                        StyledText {
+                            text: "Output Device"
+                            font.pixelSize: Theme.fontSizeSmall
+                            font.weight: Font.Medium
+                            color: Theme.surfaceVariantText
+                        }
+
+                        DeviceSelector {
+                            width: parent.width
+                        }
+                    }
+
                     RowLayout {
                         width: parent.width
                         spacing: Theme.spacingS
