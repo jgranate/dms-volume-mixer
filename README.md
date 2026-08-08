@@ -25,6 +25,13 @@ git clone https://github.com/jgranate/dms-volume-mixer ~/.config/DankMaterialShe
 
 ---
 
+## Settings
+
+- **Volume Scroll Step**: Sets the percentage-point increment used when scrolling over the bar volume pill or any device/application volume slider. The default is `5`.
+- **Reverse Scroll**: Reverses the volume direction when scrolling over the bar volume pill.
+
+---
+
 ## Project Structure
 
 This plugin uses a modular architecture to separate logic from UI components.
@@ -68,4 +75,3 @@ The modular design allows components to be used independently:
 
 ## Credits
 - Inspired by the [dms-volume-mixer](https://github.com/cwelsys/dms-volume-mixer) project by **cwelsys**.
-

@@ -12,6 +12,7 @@ StyledRect {
     property var streamNode: null
     property var volLogic: null
     property int maxVolume: 115
+    property int volumeScrollStep: 5
 
     width: parent.width
     height: 96
@@ -132,6 +133,7 @@ StyledRect {
                     Layout.preferredHeight: 24
                     minimum: 0
                     maximum: root.maxVolume
+                    step: isDragging ? 1 : root.volumeScrollStep
                     showValue: true
                     unit: "%"
 

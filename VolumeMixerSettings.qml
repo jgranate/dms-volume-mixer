@@ -29,6 +29,14 @@ PluginSettings {
         ]
     }
 
+    StringSetting {
+        settingKey: "volumeScrollStep"
+        label: "Volume Scroll Step"
+        description: "Percentage points changed per mouse-wheel or touchpad scroll step"
+        placeholder: "5"
+        defaultValue: "5"
+    }
+
     Column {
         id: reverseScrollSetting
         width: parent.width

@@ -24,6 +24,13 @@ PluginComponent {
         return 115;
     }
 
+    readonly property int volumeScrollStep: {
+        const stored = Number(pluginRoot.pluginData?.volumeScrollStep ?? 5);
+        if (!Number.isFinite(stored))
+            return 5;
+        return Math.max(1, Math.min(100, Math.round(stored)));
+    }
+
     readonly property var logic: volLogic
 
     VolumeLogic {
@@ -57,7 +64,7 @@ PluginComponent {
                 acceptedButtons: Qt.RightButton
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onWheel: wheel => volLogic.adjustVolumeByScroll(wheel, pluginRoot.pluginData?.reverseScroll)
+                onWheel: wheel => volLogic.adjustVolumeByScroll(wheel, pluginRoot.pluginData?.reverseScroll, pluginRoot.volumeScrollStep)
                 onClicked: mouse => {
                     if (mouse.button === Qt.RightButton) {
                         if (volLogic) volLogic.toggleMasterMute();
@@ -197,6 +204,7 @@ PluginComponent {
                                         deviceNode: modelData
                                         volLogic: pluginRoot.logic
                                         isSink: true
+                                        volumeScrollStep: pluginRoot.volumeScrollStep
                                     }
                                 }
                             }
@@ -241,6 +249,7 @@ PluginComponent {
                                         deviceNode: modelData
                                         volLogic: pluginRoot.logic
                                         isSink: false
+                                        volumeScrollStep: pluginRoot.volumeScrollStep
                                     }
                                 }
                             }
@@ -293,6 +302,7 @@ PluginComponent {
                                     streamNode: modelData
                                     volLogic: pluginRoot.logic
                                     maxVolume: pluginRoot.maxStreamVol
+                                    volumeScrollStep: pluginRoot.volumeScrollStep
                                 }
                             }
                         }

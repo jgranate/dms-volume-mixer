@@ -11,6 +11,7 @@ ColumnLayout {
     property var deviceNode: null
     property var volLogic: null
     property bool isSink: true
+    property int volumeScrollStep: 5
 
     width: parent.width
     spacing: 2
@@ -45,6 +46,7 @@ ColumnLayout {
             height: 32
             minimum: 0
             maximum: 100
+            step: isDragging ? 1 : root.volumeScrollStep
             enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode.id))
             value: (deviceNode && deviceNode.audio) ? Math.round(deviceNode.audio.volume * 100) : 0
             showValue: true

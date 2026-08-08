@@ -148,7 +148,7 @@ Item {
     property real _scrollAccumulator: 0
     property bool _scrollInProgress: false
 
-    function adjustVolumeByScroll(wheelEvent, reverseScroll = false) {
+    function adjustVolumeByScroll(wheelEvent, reverseScroll = false, volumeStep = 5) {
         if (!AudioService.sink?.audio || root._scrollInProgress) return;
 
         const delta = wheelEvent.angleDelta.y;
@@ -159,7 +159,7 @@ Item {
         // PRECISION: Use Math.round to prevent floating point jitter
         let currentVolume = Math.round(AudioService.sink.audio.volume * 100);
         let maxVol = 115; 
-        let step = 5;
+        let step = Math.max(1, Math.min(100, Math.round(Number(volumeStep) || 5)));
         let newVolume;
 
         const reverse = reverseScroll ? -1 : 1;
