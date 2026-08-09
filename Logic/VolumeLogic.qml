@@ -27,11 +27,11 @@ Item {
     }
 
     // Persisted State (Authoritative)
-    readonly property var deactivatedIds: root.pluginData?.deactivatedIds ?? []
+    readonly property var deactivatedDevices: root.pluginData?.deactivatedDevices ?? []
     readonly property bool hideInactive: root.pluginData?.hideInactive ?? false
 
     onHideInactiveChanged: root.refreshNodes()
-    onDeactivatedIdsChanged: root.refreshNodes()
+    onDeactivatedDevicesChanged: root.refreshNodes()
 
     // Cached Filtered Lists
     property var outputNodes: []
@@ -43,15 +43,13 @@ Item {
         const nodes = Pipewire.nodes.values;
         if (!nodes) return;
         
-        const currentDeactivated = root.deactivatedIds;
-        
         // Main list: Honors hideInactive (deactivated devices stay visible but greyed out if toggle is off)
         root.outputNodes = nodes.filter(n => {
             if (!n.isSink || n.isStream) return false;
             const props = n.properties || {};
             const mediaClass = (props["media.class"] || "").toLowerCase();
             if (mediaClass.includes("video")) return false;
-            if (root.hideInactive && currentDeactivated.includes(n.id)) return false;
+            if (root.hideInactive && root.isDeactivated(n)) return false;
             return true;
         });
 
@@ -61,7 +59,7 @@ Item {
             const props = n.properties || {};
             const mediaClass = (props["media.class"] || "").toLowerCase();
             if (mediaClass.includes("video")) return false;
-            if (currentDeactivated.includes(n.id)) return false;
+            if (root.isDeactivated(n)) return false;
             return true;
         });
 
@@ -70,7 +68,7 @@ Item {
             const mediaClass = props["media.class"] || "";
             if (mediaClass !== "Audio/Source") return false;
             if (n.isStream) return false;
-            if (root.hideInactive && currentDeactivated.includes(n.id)) return false;
+            if (root.hideInactive && root.isDeactivated(n)) return false;
             return true;
         });
 
@@ -142,7 +140,18 @@ Item {
     }
 
     // Initial load
-    Component.onCompleted: root.triggerDelayedUpdates()
+    Component.onCompleted: {
+        // Numeric PipeWire node IDs are transient and may be reused after a
+        // reconnect. Discard the old format instead of risking deactivating a
+        // different device that inherited the same ID.
+        if (root.pluginData?.deactivatedDevices === undefined &&
+            Array.isArray(root.pluginData?.deactivatedIds) &&
+            root.pluginData.deactivatedIds.length > 0 && root.pluginService) {
+            root.pluginService.savePluginData(root.pluginId, "deactivatedDevices", []);
+            root.pluginService.savePluginData(root.pluginId, "deactivatedIds", []);
+        }
+        root.triggerDelayedUpdates();
+    }
 
     // --- Volume Scroll Logic ---
     property real _scrollAccumulator: 0
@@ -186,32 +195,43 @@ Item {
 
     // --- Logic Functions ---
 
-    function isDeactivated(nodeId) {
-        if (!nodeId) return false;
-        const list = root.deactivatedIds;
-        return Array.isArray(list) && list.includes(nodeId);
+    function deviceKey(node) {
+        if (!node) return "";
+        const props = node.properties || {};
+        return node.name || props["node.name"] || props["device.name"] || "";
     }
 
-    function toggleDeactivation(nodeId) {
-        let list = [...root.deactivatedIds];
-        const index = list.indexOf(nodeId);
+    function isDeactivated(node) {
+        const key = root.deviceKey(node);
+        const list = root.deactivatedDevices;
+        return key !== "" && Array.isArray(list) && list.includes(key);
+    }
+
+    function toggleDeactivation(node) {
+        if (!node) return;
+        const key = root.deviceKey(node);
+        if (key === "") return;
+
+        let list = [...root.deactivatedDevices];
+        const index = list.indexOf(key);
         const deactivating = (index === -1);
 
-        if (deactivating) list.push(nodeId);
+        if (deactivating) list.push(key);
         else list.splice(index, 1);
 
         if (root.pluginService) {
-            root.pluginService.savePluginData(root.pluginId, "deactivatedIds", list);
+            root.pluginService.savePluginData(root.pluginId, "deactivatedDevices", list);
         }
 
-        const node = Pipewire.nodes.values.find(n => n.id == nodeId);
         if (node && node.audio) {
+            const nodeId = node.id;
             const isSink = node.isSink;
             node.audio.muted = deactivating;
             
             if (deactivating) {
                 // Find a replacement node that is NOT deactivated and is the same type (sink/source)
-                const replacement = (isSink ? root.outputNodes : root.inputNodes).find(n => n.id != nodeId);
+                const replacement = (isSink ? root.outputNodes : root.inputNodes)
+                    .find(n => n.id != nodeId && !root.isDeactivated(n));
                 
                 if (replacement) {
                     if (isSink && root.isDefaultSink(node)) root.setDefaultSink(replacement);

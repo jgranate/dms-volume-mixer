@@ -15,7 +15,7 @@ ColumnLayout {
 
     width: parent.width
     spacing: 2
-    opacity: (volLogic && deviceNode) ? (volLogic.isDeactivated(deviceNode.id) ? 0.4 : 1.0) : 1.0
+    opacity: (volLogic && deviceNode) ? (volLogic.isDeactivated(deviceNode) ? 0.4 : 1.0) : 1.0
 
     readonly property bool isDefault: {
         if (!volLogic || !deviceNode) return false;
@@ -34,7 +34,7 @@ ColumnLayout {
                 return isSink ? volLogic.getSinkIcon(deviceNode) : volLogic.getSourceIcon(deviceNode);
             }
             size: 18
-            color: (volLogic && deviceNode && (volLogic.isDeactivated(deviceNode.id) || !root.isDefault)) 
+            color: (volLogic && deviceNode && (volLogic.isDeactivated(deviceNode) || !root.isDefault))
                 ? Theme.surfaceVariantText 
                 : (deviceNode?.audio?.muted ? Theme.error : Theme.primary)
             Layout.alignment: Qt.AlignVCenter
@@ -47,7 +47,7 @@ ColumnLayout {
             minimum: 0
             maximum: 100
             step: isDragging ? 1 : root.volumeScrollStep
-            enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode.id))
+            enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode))
             value: (deviceNode && deviceNode.audio) ? Math.round(deviceNode.audio.volume * 100) : 0
             showValue: true
             unit: "%"
@@ -67,17 +67,17 @@ ColumnLayout {
             spacing: 2
             
             DankActionButton {
-                iconName: (volLogic && deviceNode && volLogic.isDeactivated(deviceNode.id)) ? "visibility_off" : "visibility"
-                iconColor: (volLogic && deviceNode && volLogic.isDeactivated(deviceNode.id)) ? Theme.surfaceVariantText : Theme.primary
+                iconName: (volLogic && deviceNode && volLogic.isDeactivated(deviceNode)) ? "visibility_off" : "visibility"
+                iconColor: (volLogic && deviceNode && volLogic.isDeactivated(deviceNode)) ? Theme.surfaceVariantText : Theme.primary
                 buttonSize: 28
                 iconSize: 14
-                tooltipText: (volLogic && deviceNode && volLogic.isDeactivated(deviceNode.id)) ? "Activate device" : "Deactivate device"
+                tooltipText: (volLogic && deviceNode && volLogic.isDeactivated(deviceNode)) ? "Activate device" : "Deactivate device"
                 onClicked: {
                     if (volLogic && deviceNode) {
                         if (deviceNode.audio) {
-                            deviceNode.audio.muted = !volLogic.isDeactivated(deviceNode.id);
+                            deviceNode.audio.muted = !volLogic.isDeactivated(deviceNode);
                         }
-                        volLogic.toggleDeactivation(deviceNode.id);
+                        volLogic.toggleDeactivation(deviceNode);
                     }
                 }
             }
@@ -87,12 +87,12 @@ ColumnLayout {
                     if (isSink) return (deviceNode?.audio?.muted ?? true) ? "volume_off" : "volume_up";
                     return (deviceNode?.audio?.muted ?? true) ? "mic_off" : "mic";
                 }
-                iconColor: (volLogic && deviceNode && (volLogic.isDeactivated(deviceNode.id) || !root.isDefault)) 
+                iconColor: (volLogic && deviceNode && (volLogic.isDeactivated(deviceNode) || !root.isDefault))
                     ? Theme.surfaceVariantText 
                     : (deviceNode?.audio?.muted ? Theme.error : Theme.primary)
                 buttonSize: 28
                 iconSize: 16
-                enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode.id))
+                enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode))
                 onClicked: {
                     if (deviceNode?.audio) {
                         const newMute = !deviceNode.audio.muted;
@@ -107,7 +107,7 @@ ColumnLayout {
     StyledText {
         text: deviceNode ? AudioService.displayName(deviceNode) : "Unknown Device"
         font.pixelSize: 10
-        color: (volLogic && deviceNode && (volLogic.isDeactivated(deviceNode.id) || !root.isDefault)) ? Theme.surfaceVariantText : Theme.primary
+        color: (volLogic && deviceNode && (volLogic.isDeactivated(deviceNode) || !root.isDefault)) ? Theme.surfaceVariantText : Theme.primary
         font.weight: root.isDefault ? Font.Bold : Font.Normal
         elide: Text.ElideMiddle
         Layout.fillWidth: true
@@ -115,7 +115,7 @@ ColumnLayout {
         
         MouseArea {
             anchors.fill: parent
-            enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode.id))
+            enabled: !!(volLogic && deviceNode && !volLogic.isDeactivated(deviceNode))
             hoverEnabled: true
             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
             propagateComposedEvents: false

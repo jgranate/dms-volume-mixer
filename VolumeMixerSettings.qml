@@ -109,10 +109,10 @@ PluginSettings {
     }
 
     // --- Hidden Persisted State (Handled by VolumeMixer.qml) ---
-    property var deactivatedIds: root.loadValue("deactivatedIds", [])
+    property var deactivatedDevices: root.loadValue("deactivatedDevices", [])
     property bool hideInactive: root.loadValue("hideInactive", false)
 
-    onDeactivatedIdsChanged: root.saveValue("deactivatedIds", deactivatedIds)
+    onDeactivatedDevicesChanged: root.saveValue("deactivatedDevices", deactivatedDevices)
     onHideInactiveChanged: root.saveValue("hideInactive", hideInactive)
 
     Column {
