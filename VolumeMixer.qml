@@ -217,7 +217,7 @@ PluginComponent {
                             spacing: Theme.spacingS
 
                             RowLayout {
-                                visible: AudioService.source !== null
+                                visible: volLogic && volLogic.inputNodes.length > 0
                                 width: parent.width
                                 spacing: Theme.spacingS
 
