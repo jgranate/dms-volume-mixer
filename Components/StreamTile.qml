@@ -26,22 +26,7 @@ StyledRect {
     readonly property var mprisPlayer: (volLogic && streamNode) ? volLogic.findMprisPlayer(streamNode) : null
     
     readonly property bool shouldShowMetadata: {
-        if (!volLogic || !streamNode || !mprisPlayer) return false;
-        const allStreams = volLogic.streamNodes;
-        const appName = (streamNode.properties?.["application.name"] || "").toLowerCase();
-        const appStreams = allStreams.filter(s => (s.properties?.["application.name"] || "").toLowerCase() === appName);
-        
-        if (appStreams.length > 1) {
-            const runningStreams = appStreams.filter(s => s.state === PwNode.Running);
-            if (runningStreams.length > 1) return false;
-            if (streamNode.state === PwNode.Running) return true;
-            return false;
-        }
-        
-        if (streamNode.state === PwNode.Running) return true;
-        const anyRunning = appStreams.some(s => s.state === PwNode.Running);
-        if (!anyRunning && appStreams.length > 0) return appStreams[0].id === streamNode.id;
-        return false;
+        return !!(mprisPlayer && mprisPlayer.trackTitle);
     }
 
     readonly property bool isStreamPlaying: {
@@ -87,10 +72,20 @@ StyledRect {
             spacing: 2
 
             // --- LINE 1: Title ---
-            ScrollingText {
+            StyledText {
+                Layout.fillWidth: true
+                Layout.preferredHeight: Theme.fontSizeMedium
                 text: {
                     if (!streamNode) return "";
                     const app = AudioService.displayName(streamNode);
+                    const mprisTitle = root.mprisPlayer?.trackTitle || "";
+                    if (mprisTitle)
+                        return mprisTitle;
+                    const appName = streamNode.properties?.["application.name"] || "";
+                    const processBinary = streamNode.properties?.["application.process.binary"] || "";
+                    const nodeName = streamNode.name || "";
+                    if (appName === "dms-briefing-viewer" || nodeName === "dms-briefing-viewer" || processBinary === "QtWebEngineProcess")
+                        return "Briefing Video";
                     if (root.shouldShowMetadata && root.mprisPlayer?.trackTitle)
                         return root.mprisPlayer.trackTitle;
 
@@ -101,8 +96,9 @@ StyledRect {
                     const desc = props["node.description"];
                     if (desc && desc !== app && desc !== "Playback") return desc;
                     
-                    return app;
+                    return app || nodeName || "Audio stream";
                 }
+                visible: true
                 font.pixelSize: Theme.fontSizeMedium
                 font.weight: Font.Bold
                 color: root.isStreamPlaying ? Theme.surfaceText : Theme.surfaceVariantText
@@ -124,7 +120,6 @@ StyledRect {
                     }
                     font.pixelSize: Theme.fontSizeSmall
                     color: Theme.surfaceVariantText
-                    scrollSpeed: 40
                 }
 
                 DankSlider {
@@ -147,6 +142,7 @@ StyledRect {
                             streamNode.audio.volume = newValue / 100;
                             if (newValue > 0 && streamNode.audio.muted)
                                 streamNode.audio.muted = false;
+                            AudioService.playVolumeChangeSoundIfEnabled();
                         }
                     }
                 }
