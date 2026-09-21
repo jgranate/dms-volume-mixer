@@ -40,17 +40,9 @@ PluginComponent {
         pluginService: pluginRoot.pluginService
     }
 
-    readonly property color activePillColor: {
-        if (!volLogic) return Theme.surfaceText;
-        const _ = volLogic.stateTrigger;
-        if (volLogic.masterMuted || volLogic.masterVolume === 0)
-            return Theme.surfaceVariantText;
-        
-        if (volLogic.isAnyStreamPlaying)
-            return Theme.primary;
-            
-        return Theme.surfaceText;
-    }
+    // Keep the bar pill aligned with the Astral Journey accent. Mute and
+    // playback state remain visible through the icon/strikeout behavior.
+    readonly property color activePillColor: Theme.primary
 
     horizontalBarPill: Component {
         Item {
